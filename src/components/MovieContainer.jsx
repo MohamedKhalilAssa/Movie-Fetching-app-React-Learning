@@ -1,71 +1,82 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import MoviePost from "./MoviePost";
 
-const MovieContainer = (props) => {
-  const API_URL = `https://www.omdbapi.com/?s=${props.searchTerms}&apikey=e27ca18f`;
+const MovieContainer = ({ searchTerms }) => {
+  const API_URL = `https://www.omdbapi.com/?s=${searchTerms}&apikey=e27ca18f`;
   const [movies, setMovies] = useState([]);
   const [error, setError] = useState(null);
   const [showCount, setShowCount] = useState(5);
   const [pageNumber, setPageNumber] = useState(1);
+  const [loading, setLoading] = useState(false);
 
-  const fetchMovies = (page = 1) => {
-    fetch(`${API_URL}&page=${page}`)
-      .then((response) => {
+  const fetchMovies = useCallback(
+    async (page = 1, resetMovies = false) => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_URL}&page=${page}`);
         if (!response.ok) {
           throw new Error("Network response was not ok");
         }
-        return response.json();
-      })
-      .then((data) => {
+        const data = await response.json();
         if (data.Response === "True") {
-          setMovies(data.Search);
+          if (resetMovies) {
+            setMovies(data.Search);
+          } else {
+            setMovies((prevMovies) => [...prevMovies, ...data.Search]);
+          }
         } else {
-          setMovies([]);
           setError(data.Error);
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         setError("Failed to fetch movies");
-      });
-  };
-  useEffect(() => {
-    if (props.searchTerms === "") {
-      setMovies("No Result!");
-      return;
-    }
-    fetchMovies();
-  }, [props.searchTerms]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [API_URL]
+  );
 
-  const loadingMore = () => {
-    setShowCount(showCount + 5);
-    if (showCount >= movies.length) {
-      setPageNumber((prevNumber) => prevNumber + 1);
-      let oldMovies = movies;
-      fetchMovies(pageNumber);
-      setMovies([...oldMovies, ...movies]);
+  useEffect(() => {
+    if (searchTerms) {
+      setMovies([]);
+      setPageNumber(1);
+      fetchMovies(1, true);
+    }
+  }, [searchTerms]);
+
+  const loadMore = () => {
+    setShowCount((showCount) => showCount + 5);
+    if (showCount >= movies.length && !loading) {
+      const nextPage = pageNumber + 1;
+      setPageNumber(nextPage);
+      fetchMovies(nextPage);
     }
   };
+
   return (
     <>
       <div className="text-white flex gap-8 justify-center sm:justify-around flex-wrap mt-12 w-full sm:px-16">
         {error ? (
           <p>{error}</p>
-        ) : movies === "No Result!" ? (
-          movies
+        ) : movies.length === 0 && loading ? (
+          "Loading..."
         ) : movies.length > 0 ? (
           movies
             .slice(0, showCount)
             .map((movie) => <MoviePost key={movie.imdbID} movie={movie} />)
         ) : (
-          "Loading...."
+          "No Results!"
         )}
       </div>
-      <button
-        className="bg-gray-900 text-gray-200 rounded-lg px-4 py-2 mt-8"
-        onClick={() => loadingMore()}
-      >
-        Show More
-      </button>
+      {movies.length > 0 && (
+        <button
+          className="bg-gray-900 text-gray-200 rounded-lg px-4 py-2 mt-8"
+          onClick={loadMore}
+          disabled={loading}
+        >
+          {loading ? "Loading..." : "Show More"}
+        </button>
+      )}
     </>
   );
 };

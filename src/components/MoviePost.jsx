@@ -2,7 +2,7 @@ import React from "react";
 
 const MoviePost = (props) => {
   return (
-    <div className="bg-gray-900 w-64 h-80 relative rounded-lg text-gray-200 shadow-xl">
+    <div className="bg-gray-900 w-64 h-80 relative rounded-lg text-gray-200 shadow-xl ">
       <div className="imgContainer w-full h-full rounded-lg">
         <img
           src={props.movie.Poster}
